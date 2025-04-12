@@ -10,6 +10,11 @@ When working on something that produces output artifacts frequently, keeping the
 
 ## How to use
 
+Install using:
+```
+cargo install rattlebeaver
+```
+
 Every command in rattlebeaver will require specifying the `TARGET_DIR` - the directory containing the rolling backups. This can be done using `-t <TARGET_DIR>` or setting the `RATTLEBEAVER_TARGET_DIR` environment variable.
 
 A default configuration file will be generated inside the target dir as `<TARGET_DIR>/rattlebeaver.config.toml`. This config will determine how backups are rolled: which backups are relevant and which are stale and need to be deleted.

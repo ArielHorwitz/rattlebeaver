@@ -1,7 +1,14 @@
 [package]
 name = "rattlebeaver"
+description = "Manage rolling backups"
 version = "0.1.0"
 edition = "2024"
+repository = "https://github.com/ArielHorwitz/rattlebeaver"
+license = "Unlicense"
+keywords = [
+    "rolling",
+    "backup",
+]
 
 [dependencies]
 anyhow = "1.0.97"
