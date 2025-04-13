@@ -72,11 +72,11 @@ impl std::fmt::Display for Timestamp {
     }
 }
 
-#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub enum Range {
-    Minute,
-    Hour,
-    Day,
-    Month,
-    Year,
+    Minute = 1,
+    Hour = 2,
+    Day = 3,
+    Month = 4,
+    Year = 5,
 }

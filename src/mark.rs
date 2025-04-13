@@ -1,5 +1,5 @@
 use crate::config;
-use crate::entry::{Entry, read_dir};
+use crate::entry::{Entry, Fulfillment, read_dir};
 use crate::timestamp::{Range, Timestamp};
 use anyhow::{Context, Result};
 use std::collections::{HashMap, HashSet};
@@ -13,7 +13,13 @@ pub fn read_backups(target: &Path, config: &config::Config) -> Result<Vec<Entry>
         .rev()
         .take(config.ranges.latest)
         .enumerate()
-        .for_each(|(i, b)| b.fulfills.push(format!("Latest #{}", i + 1)));
+        .for_each(|(i, b)| {
+            b.fulfills.push(Fulfillment {
+                range: None,
+                index: i + 1,
+                first_or_last: true,
+            });
+        });
     let mut all_backups: HashMap<Timestamp, Entry> =
         all_backups.into_iter().map(|b| (b.timestamp, b)).collect();
     let now = Timestamp::now();
@@ -64,9 +70,11 @@ fn mark_range(
                 let Some(original) = all_backups.get_mut(first_backup_timestamp) else {
                     anyhow::bail!("{first_backup_timestamp} not found in original list");
                 };
-                original
-                    .fulfills
-                    .push(format!("First of {range:?} #{}", i + 1));
+                original.fulfills.push(Fulfillment {
+                    range: Some(range),
+                    index: i + 1,
+                    first_or_last: true,
+                });
             }
         }
         if config.include_last {
@@ -74,9 +82,11 @@ fn mark_range(
                 let Some(original) = all_backups.get_mut(last_backup_timestamp) else {
                     anyhow::bail!("{last_backup_timestamp} not found in original list");
                 };
-                original
-                    .fulfills
-                    .push(format!("Last of {range:?} #{}", i + 1));
+                original.fulfills.push(Fulfillment {
+                    range: Some(range),
+                    index: i + 1,
+                    first_or_last: false,
+                });
             }
         }
     }

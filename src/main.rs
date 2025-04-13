@@ -1,6 +1,8 @@
 use anyhow::{Context, Result};
 use clap::Parser;
-use rattlebeaver::{ArchiveMode, Config, Entry, TimestampSelection, create_backup, read_backups};
+use rattlebeaver::{
+    ArchiveMode, Config, Entry, Fulfillment, TimestampSelection, create_backup, read_backups,
+};
 use std::path::{Path, PathBuf};
 
 #[allow(clippy::doc_markdown)]
@@ -71,6 +73,7 @@ enum ListingDetails {
     Name,
     Size,
     Fulfills,
+    FulfillsShort,
 }
 
 impl ListingDetails {
@@ -192,7 +195,8 @@ fn delete_stale(target: &Path, config: &Config, execute: bool) -> Result<()> {
     for b in delete_backups {
         println!("{}", b.path.display());
         if execute {
-            std::fs::remove_file(&b.path).with_context(|| format!("delete {}", b.path.display()))?;
+            std::fs::remove_file(&b.path)
+                .with_context(|| format!("delete {}", b.path.display()))?;
         }
     }
     Ok(())
@@ -206,7 +210,16 @@ fn list(target: &Path, config: &Config, details: &[ListingDetails]) -> Result<()
             let display = match desired {
                 ListingDetails::Name => backup.path.display().to_string(),
                 ListingDetails::Time => backup.timestamp.humanized(),
-                ListingDetails::Fulfills => backup.fulfills.join(" :: "),
+                ListingDetails::Fulfills => {
+                    let reprs: Vec<String> =
+                        backup.fulfills.iter().map(Fulfillment::display).collect();
+                    reprs.join(" :: ")
+                }
+                ListingDetails::FulfillsShort => {
+                    let reprs: Vec<String> =
+                        backup.fulfills.iter().map(Fulfillment::display_short).collect();
+                    reprs.join(" ")
+                }
                 ListingDetails::Size => {
                     let file_size_bytes = backup.metadata().context("get file metadata")?.len();
                     format!("{file_size_bytes} bytes")

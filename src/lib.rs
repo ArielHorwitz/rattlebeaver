@@ -6,5 +6,5 @@ pub mod timestamp;
 
 pub use backup::{ArchiveMode, TimestampSelection, create_backup};
 pub use config::Config;
-pub use entry::Entry;
+pub use entry::{Entry, Fulfillment};
 pub use mark::read_backups;

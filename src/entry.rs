@@ -1,5 +1,5 @@
 use crate::config;
-use crate::timestamp::Timestamp;
+use crate::timestamp::{Range, Timestamp};
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::fs::Metadata;
@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 pub struct Entry {
     pub path: PathBuf,
     pub timestamp: Timestamp,
-    pub fulfills: Vec<String>,
+    pub fulfills: Vec<Fulfillment>,
 }
 
 impl Entry {
@@ -95,4 +95,60 @@ pub(crate) fn read_dir(target: &Path, config: &config::Archive) -> Result<Vec<En
     }
     all_backups.sort();
     Ok(all_backups)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Fulfillment {
+    /// The range (or None if it is one of the latest)
+    pub range: Option<Range>,
+    /// The index within the range
+    pub index: usize,
+    /// If it is the first or last of the index in the range
+    pub first_or_last: bool,
+}
+
+impl Fulfillment {
+    #[must_use]
+    pub fn display(&self) -> String {
+        let Some(range) = self.range else {
+            return format!("latest #{}", self.index);
+        };
+        let mut repr = if self.first_or_last {
+            String::from("first")
+        } else {
+            String::from("last")
+        };
+        repr.push_str(" of ");
+        repr.push_str(&format!("{range:?}").to_lowercase());
+        repr.push_str(&format!(" #{}", self.index));
+        repr
+    }
+
+    #[must_use]
+    pub fn display_short(&self) -> String {
+        let Some(range) = self.range else {
+            return format!("L#{}", self.index);
+        };
+        let mut repr = if self.first_or_last {
+            String::from("⇤")
+        } else {
+            String::from("⇥")
+        };
+        let letter = match range {
+            Range::Minute => 'm',
+            Range::Hour => 'h',
+            Range::Day => 'd',
+            Range::Month => 'M',
+            Range::Year => 'Y',
+        };
+        repr.push(letter);
+        repr.push_str(&self.index.to_string());
+        repr
+    }
+}
+
+impl std::fmt::Display for Fulfillment {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.display())
+    }
 }
