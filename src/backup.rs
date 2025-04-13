@@ -25,22 +25,55 @@ pub enum TimestampSelection {
     FileModified,
 }
 
+#[derive(Debug)]
+pub enum BackupError {
+    TimestampConflict(String),
+    Other(anyhow::Error),
+}
+
+impl From<anyhow::Error> for BackupError {
+    fn from(value: anyhow::Error) -> Self {
+        BackupError::Other(value)
+    }
+}
+
+impl std::fmt::Display for BackupError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let display = match self {
+            Self::TimestampConflict(s) => s.to_owned(),
+            Self::Other(e) => e.to_string(),
+        };
+        write!(f, "{display}")
+    }
+}
+
+impl std::error::Error for BackupError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        if let Self::Other(anyhow_error) = self {
+            Some(&**anyhow_error)
+        } else {
+            None
+        }
+    }
+}
+
 pub fn create_backup(
     source: &Path,
     target: &Path,
     config: &config::Archive,
     timestamp: TimestampSelection,
     archive_behavior: ArchiveMode,
-) -> Result<PathBuf> {
+) -> std::result::Result<PathBuf, BackupError> {
     ensure_dir(target)?;
     let timestamp = get_file_timestamp(source, timestamp)?;
     let existing_backups = read_dir(target, config).context("read existing backups")?;
     for existing in existing_backups {
         if timestamp == existing.timestamp {
-            anyhow::bail!(
+            let error = BackupError::TimestampConflict(format!(
                 "timestamp {timestamp} conflicts with existing backup: {}",
                 existing.path.display()
-            );
+            ));
+            return Err(error);
         }
     }
     let file_name = format!(
@@ -91,7 +124,7 @@ pub fn create_backup(
             target_path
         }
     } else {
-        anyhow::bail!("source file is neither a file nor directory");
+        return Err(anyhow::anyhow!("source file is neither a file nor directory").into());
     };
 
     Ok(final_target_path)

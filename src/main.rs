@@ -1,7 +1,8 @@
 use anyhow::{Context, Result};
 use clap::Parser;
 use rattlebeaver::{
-    ArchiveMode, Config, Entry, Fulfillment, TimestampSelection, create_backup, read_backups,
+    ArchiveMode, Config, Entry, Fulfillment, TimestampSelection, backup::BackupError,
+    create_backup, read_backups,
 };
 use std::path::{Path, PathBuf};
 
@@ -45,6 +46,9 @@ struct ArgsAdd {
     /// Don't stop on first failure
     #[arg(short = 'f', long)]
     force: bool,
+    /// Ignore timestamp conflicts
+    #[arg(long)]
+    ignore_conflicts: bool,
     /// Also delete stale backups
     #[arg(short = 'D', long)]
     delete: bool,
@@ -118,15 +122,19 @@ fn main() -> Result<()> {
                     &config.archive,
                     subargs.timestamp,
                     subargs.archive_mode,
-                )
-                .with_context(|| format!("backup file: {file:?}"));
+                );
                 match new_backup_result {
                     Ok(new_backup) => println!("{}", new_backup.display()),
                     Err(error) => {
+                        let is_conflict = matches!(error, BackupError::TimestampConflict(_));
+                        if is_conflict && subargs.ignore_conflicts {
+                            continue;
+                        }
                         if subargs.force {
                             errors.push(error);
                         } else {
-                            return Err(error);
+                            let context = format!("backup file: {file:?}");
+                            return Err(anyhow::Error::from(error).context(context));
                         }
                     }
                 }
@@ -137,7 +145,7 @@ fn main() -> Result<()> {
                 }
             }
             if let Some(error) = errors.into_iter().next() {
-                return Err(error);
+                return Err(error.into());
             }
             if subargs.delete {
                 delete_stale(&target_dir, &config, true).context("delete stale backups")?;
@@ -216,8 +224,11 @@ fn list(target: &Path, config: &Config, details: &[ListingDetails]) -> Result<()
                     reprs.join(" :: ")
                 }
                 ListingDetails::FulfillsShort => {
-                    let reprs: Vec<String> =
-                        backup.fulfills.iter().map(Fulfillment::display_short).collect();
+                    let reprs: Vec<String> = backup
+                        .fulfills
+                        .iter()
+                        .map(Fulfillment::display_short)
+                        .collect();
                     reprs.join(" ")
                 }
                 ListingDetails::Size => {
